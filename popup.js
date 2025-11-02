@@ -54,11 +54,12 @@ function pickRandomProblem(unsolvedOnly = false) {
 
   links = links.map(href => {
     let clean = href.startsWith("http") ? href : `https://leetcode.com${href}`;
-    clean = clean.replace(/(https:\/\/leetcode\.com\/problems\/[a-z0-9-]+)\/?.*$/i, "$1/");
+    clean = clean.replace("editorial", "description");
     return clean;
   });
 
-  links = [...new Set(links)].filter(href => /^https:\/\/leetcode\.com\/problems\/[a-z0-9-]+\/$/i.test(href));
+
+  // links = [...new Set(links)].filter(href => /^https:\/\/leetcode\.com\/problems\/[a-z0-9-]+\/$/i.test(href));
 
   if (unsolvedOnly) {
     const solvedProblems = new Set();
