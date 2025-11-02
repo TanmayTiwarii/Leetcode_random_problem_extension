@@ -48,28 +48,36 @@ function pickRandomProblem(unsolvedOnly = false) {
     }, 2500);
   }
 
-  let links = [...document.querySelectorAll('a[href*="/problems/"]')]
+  let linkPairs = [...document.querySelectorAll('a[href*="/problems/"]')]
     .map(a => a.href)
-    .filter(href => href.includes("/problems/"));
+    .filter(href => href.includes("/problems/"))
+    .map(href => {
+      const original = href.startsWith("http") ? href : `https://leetcode.com${href}`;
+  const canonical = original.replace(/(https:\/\/leetcode\.com\/problems\/[a-z0-9-]+)\/?(.*)$/i, "$1/");
+      return { original, canonical };
+    });
 
-  links = links.map(href => {
-    let clean = href.startsWith("http") ? href : `https://leetcode.com${href}`;
-    clean = clean.replace("editorial", "description");
-    return clean;
-  });
+  {
+    const seen = new Set();
+    linkPairs = linkPairs.filter(p => {
+      if (!/^https:\/\/leetcode\.com\/problems\/[a-z0-9-]+\/$/i.test(p.canonical)) return false;
+      if (seen.has(p.canonical)) return false;
+      seen.add(p.canonical);
+      return true;
+    });
+  }
 
-
-  // links = [...new Set(links)].filter(href => /^https:\/\/leetcode\.com\/problems\/[a-z0-9-]+\/$/i.test(href));
+  let keptPairs = linkPairs;
 
   if (unsolvedOnly) {
     const solvedProblems = new Set();
-    
+
     const allSvgs = [...document.querySelectorAll('svg')];
-    
+
     allSvgs.forEach(svg => {
       const svgPath = svg.querySelector('path');
       const pathD = svgPath ? svgPath.getAttribute('d') : '';
-      
+
       if (pathD && (
         pathD.includes('M9.688 15.898') ||
         pathD.includes('9.605 9.605') ||
@@ -80,38 +88,44 @@ function pickRandomProblem(unsolvedOnly = false) {
         for (let i = 0; i < 15; i++) {
           parent = parent.parentElement;
           if (!parent) break;
-          
+
           const problemLink = parent.querySelector('a[href*="/problems/"]');
           if (problemLink) {
             let href = problemLink.href;
             let clean = href.startsWith("http") ? href : `https://leetcode.com${href}`;
-            clean = clean.replace(/(https:\/\/leetcode\.com\/problems\/[a-z0-9-]+)\/?.*$/i, "$1/");
+            clean = clean.replace(/(https:\/\/leetcode\.com\/problems\/[a-z0-9-]+)\/?(.*)$/i, "$1/");
             solvedProblems.add(clean);
             break;
           }
         }
       }
     });
-    
-    links = links.filter(link => !solvedProblems.has(link));
-    
-    if (links.length === 0) {
+
+    keptPairs = linkPairs.filter(p => !solvedProblems.has(p.canonical));
+
+    if (keptPairs.length === 0) {
       showMessage("No unsolved problems found on this page!", "#e63946");
       window.__leetcode_random_picker_active = false;
       return;
     }
   }
 
-  if (links.length === 0) {
+  const finalList = keptPairs.length ? keptPairs : linkPairs;
+
+  if (finalList.length === 0) {
     showMessage("No problems found on this page!", "#e63946");
     window.__leetcode_random_picker_active = false;
     return;
   }
 
-  const random = links[Math.floor(Math.random() * links.length)];
+  const chosenPair = finalList[Math.floor(Math.random() * finalList.length)];
+  const random = chosenPair.original;
+
+  const urlToOpen = random.replace(/\/editorial(?=\/|$)/i, '/description');
+
   showMessage("Opening random problem...", "#38b000");
 
-  chrome.runtime.sendMessage({ action: "openProblemTab", url: random });
+  chrome.runtime.sendMessage({ action: "openProblemTab", url: urlToOpen });
 
   setTimeout(() => (window.__leetcode_random_picker_active = false), 1000);
 }
